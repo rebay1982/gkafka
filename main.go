@@ -42,10 +42,29 @@ func main() {
 	if pErr != nil {
 		fmt.Printf("Error creating producer: %v\n", pErr)
 	}
+	defer producer.AsyncClose()
+
+	consumer, cErr := sarama.NewConsumer([]string{"localhost:9092"}, sarama.NewConfig())
+	if cErr != nil {
+		fmt.Printf("Error creating consumer: %v\n", cErr)
+	}
+	defer consumer.Close()
+
+	partitionConsumer, err := consumer.ConsumePartition("test-topic", 0, sarama.OffsetNewest)
 
 	// Produce a message
+	fmt.Println("Producing messages...")
 	for i := 0; i < 10; i++ {
 		producer.Input() <- generateMessage("test-topic")
+	}
+
+	sleepSome(5)
+	fmt.Println("Start consuming messages...")
+	// Consume messages
+	for i := 0; i < 10; i++ {
+		msg := <-partitionConsumer.Messages()
+
+		fmt.Printf("Message: %s\n  Topic: %s\n  Partition: %d\n  Offset: %d\n", string(msg.Value), msg.Topic, msg.Partition, msg.Offset)
 	}
 
 }
